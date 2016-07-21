@@ -20,7 +20,9 @@ import eu.hansolo.medusa.Fonts;
 import eu.hansolo.medusa.Gauge;
 import eu.hansolo.medusa.GaugeBuilder;
 import eu.hansolo.medusa.Section;
-import javafx.geometry.Bounds;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.BooleanPropertyBase;
+import javafx.beans.property.DoubleProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.VPos;
 import javafx.scene.layout.Background;
@@ -57,42 +59,65 @@ import java.util.List;
  * Time: 06:52
  */
 public class QualityGauge extends Region {
-    private static final double PREFERRED_WIDTH  = 616;
-    private static final double PREFERRED_HEIGHT = 323;
-    private static final double MINIMUM_WIDTH    = 61;
-    private static final double MINIMUM_HEIGHT   = 32;
-    private static final double MAXIMUM_WIDTH    = 1024;
-    private static final double MAXIMUM_HEIGHT   = 1024;
-    private static double       aspectRatio;
-    private        double       width;
-    private        double       height;
-    private        double       centerX;
-    private        double       centerY;
-    private        double       sectionAngle;
-    private        List<Path>   sections;
-    private        MoveTo       moveTo;
-    private        LineTo       lineTo1;
-    private        CubicCurveTo cubicCurveTo1;
-    private        CubicCurveTo cubicCurveTo2;
-    private        CubicCurveTo cubicCurveTo3;
-    private        CubicCurveTo cubicCurveTo4;
-    private        LineTo       lineTo2;
-    private        ClosePath    closePath;
-    private        Path         currentQuality;
-    private        Text         currentQualityText;
-    private        Rotate       currentQualityRotate;
-    private        Circle       knob;
-    private        Pane         pane;
-    private        Paint        backgroundPaint;
-    private        Paint        borderPaint;
-    private        double       borderWidth;
-    private        Gauge        model;
+    private static final double    PREFERRED_WIDTH  = 616;
+    private static final double    PREFERRED_HEIGHT = 323;
+    private static final double    MINIMUM_WIDTH    = 61;
+    private static final double    MINIMUM_HEIGHT   = 32;
+    private static final double    MAXIMUM_WIDTH    = 1024;
+    private static final double    MAXIMUM_HEIGHT   = 1024;
+    private static final Section[] NORMAL_ORDER  = {
+        new Section(0, 1, "1", Color.web("#87ec7a")),
+        new Section(1, 2, "2", Color.web("#a0e17a")),
+        new Section(2, 3, "3", Color.web("#b9d87a")),
+        new Section(3, 4, "4", Color.web("#d2cf7a")),
+        new Section(4, 5, "5", Color.web("#edc57a")),
+        new Section(5, 6, "6", Color.web("#ffbb7a")),
+        new Section(6, 7, "7", Color.web("#ffac7b")),
+        new Section(7, 8, "8", Color.web("#ff9f7b")),
+        new Section(8, 9, "9", Color.web("#ff917c")),
+        new Section(9, 10, "10", Color.web("#ff837c"))
+    };
+    private static final Section[] REVERSE_ORDER = {
+        new Section(0, 1, "1", Color.web("#ff837c")),
+        new Section(1, 2, "2", Color.web("#ff917c")),
+        new Section(2, 3, "3", Color.web("#ff9f7b")),
+        new Section(3, 4, "4", Color.web("#ffac7b")),
+        new Section(4, 5, "5", Color.web("#ffbb7a")),
+        new Section(5, 6, "6", Color.web("#edc57a")),
+        new Section(6, 7, "7", Color.web("#d2cf7a")),
+        new Section(7, 8, "8", Color.web("#b9d87a")),
+        new Section(8, 9, "9", Color.web("#a0e17a")),
+        new Section(9, 10, "10", Color.web("#87ec7a"))
+    };
+    private static double          aspectRatio;
+    private        double          width;
+    private        double          height;
+    private        double          centerX;
+    private        double          centerY;
+    private        double          sectionAngle;
+    private        List<Path>      sections;
+    private        MoveTo          moveTo;
+    private        LineTo          lineTo1;
+    private        CubicCurveTo    cubicCurveTo1;
+    private        CubicCurveTo    cubicCurveTo2;
+    private        CubicCurveTo    cubicCurveTo3;
+    private        CubicCurveTo    cubicCurveTo4;
+    private        LineTo          lineTo2;
+    private        ClosePath       closePath;
+    private        Path            currentQuality;
+    private        Text            currentQualityText;
+    private        Rotate          currentQualityRotate;
+    private        Circle          knob;
+    private        Pane            pane;
+    private        Paint           backgroundPaint;
+    private        Paint           borderPaint;
+    private        double          borderWidth;
+    private        Gauge           model;
+    private        BooleanProperty reverseOrder;
 
 
     // ******************** Constructors **************************************
     public QualityGauge() {
-        //getStylesheets().add(QualityGauge.class.getResource("styles.css").toExternalForm());
-        //getStyleClass().add(getClass().getSimpleName().toLowerCase());
         aspectRatio     = PREFERRED_HEIGHT / PREFERRED_WIDTH;
         backgroundPaint = Color.TRANSPARENT;
         borderPaint     = Color.TRANSPARENT;
@@ -103,17 +128,13 @@ public class QualityGauge extends Region {
                                       .startAngle(0)
                                       .angleRange(180)
                                       .sectionsVisible(true)
-                                      .sections(new Section(0, 1, "1", Color.web("#87ec7a")),
-                                                new Section(1, 2, "2", Color.web("#a0e17a")),
-                                                new Section(2, 3, "3", Color.web("#b9d87a")),
-                                                new Section(3, 4, "4", Color.web("#d2cf7a")),
-                                                new Section(4, 5, "5", Color.web("#edc57a")),
-                                                new Section(5, 6, "6", Color.web("#ffbb7a")),
-                                                new Section(6, 7, "7", Color.web("#ffac7b")),
-                                                new Section(7, 8, "8", Color.web("#ff9f7b")),
-                                                new Section(8, 9, "9", Color.web("#ff917c")),
-                                                new Section(9, 10, "10", Color.web("#ff837c")))
+                                      .sections(NORMAL_ORDER)
                                       .build();
+        reverseOrder = new BooleanPropertyBase(false) {
+            @Override protected void invalidated() { model.setSections(get() ? REVERSE_ORDER : NORMAL_ORDER); }
+            @Override public Object getBean() { return QualityGauge.this; }
+            @Override public String getName() { return "reverseOrder"; }
+        };
         init();
         initGraphics();
         registerListeners();
@@ -267,6 +288,11 @@ public class QualityGauge extends Region {
 
     public int getValue() { return model.valueProperty().intValue(); }
     public void setValue(final int VALUE) { model.setValue(VALUE); }
+    public DoubleProperty valueProperty() { return model.valueProperty(); }
+
+    public boolean isReverseOrder() { return reverseOrder.get(); }
+    public void setReverseOrder(final boolean ORDER) { reverseOrder.set(ORDER); }
+    public BooleanProperty reverseOrderProperty() { return reverseOrder; }
 
 
     // ******************** Resizing ******************************************

@@ -40,6 +40,7 @@ public class Demo extends Application {
 
     @Override public void init() {
         gauge         = new QualityGauge();
+        gauge.setReverseOrder(true); // Switch colors between green - red and red - green
         counter       = 0;
         lastTimerCall = System.nanoTime();
         timer         = new AnimationTimer() {
